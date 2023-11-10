@@ -6,6 +6,8 @@ import SchnorrAdapter, {IPresignOutput} from "../adapter/adapter";
 import {publicKeyCreate} from "secp256k1";
 // @ts-ignore
 import {MyToken, Schnorr} from "../typechain-types";
+import * as net from "net";
+import {zeroOutSlices} from "hardhat/internal/hardhat-network/stack-traces/library-utils";
 
 
 describe("Adapter", function () {
@@ -20,12 +22,14 @@ describe("Adapter", function () {
     let preSignBob: IPresignOutput;
     let sBob: Uint8Array;
     let tRecovered: Uint8Array;
-    //const m1 = randomBytesVerified(32);
-    //const m2 = randomBytesVerified(32);
-    let m1:Uint8Array;
-    let m2:Uint8Array;
-    let tx1:TransactionLike;
-    let tx2:TransactionLike;
+    let chainId: bigint;
+    let m1: Uint8Array;
+    let m2: Uint8Array;
+    //let tx1: TransactionLike;
+    //let tx2: TransactionLike;
+    let amount1 = 10n ** 5n
+    let amount2 = 10n ** 6n
+
 
     async function deploy() {
         // Contracts are deployed using the first signer/account by default
@@ -34,6 +38,7 @@ describe("Adapter", function () {
         const bob = ethers.Wallet.createRandom().connect(ethers.provider);
         const Schnorr = await ethers.getContractFactory("Schnorr");
         const schnorrContract = await Schnorr.deploy();
+        const schnorrAddress = await schnorrContract.getAddress();
         const MyToken = await ethers.getContractFactory("MyToken");
         const token1 = await MyToken.deploy("USD token", "USD");
         const token2 = await MyToken.deploy("EUR token", "EUR");
@@ -48,20 +53,30 @@ describe("Adapter", function () {
         })
         it("Should  give alice and bob some eth to perform txs and send tokens", async function () {
             const txEth = await owner.sendTransaction({to: alice.address, value: 10n ** 18n});
-            await txEth.wait();
+            //await txEth.wait();
             const tx2Eth = await owner.sendTransaction({to: bob.address, value: 10n ** 18n});
-            await tx2Eth.wait();
+            //await tx2Eth.wait();
             await token1.mint(alice.address, 10n ** 18n);
             await token2.mint(bob.address, 10n ** 18n);
         })
         it("Should  prepare messages as tx hashes", async function () {
-
-            tx1 = await token1.connect(alice).transfer.populateTransaction(bob.address, 10n ** 5n)
-            tx2 = await token2.connect(bob).transfer.populateTransaction(alice.address, 10n ** 5n)
+            //tx1 = await token1.connect(alice).transfer.populateTransaction(bob.address, 10n ** 5n)
+            //tx2 = await token2.connect(bob).transfer.populateTransaction(alice.address, 10n ** 5n)
             //const l = await ethers.provider.estimateGas(tx);
             //const res = await alice.sendTransaction(tx);
-            m1 = ethers.getBytes(Transaction.from(tx1).unsignedHash);
-            m2 = ethers.getBytes(Transaction.from(tx2).unsignedHash);
+            chainId = (await ethers.provider.getNetwork()).chainId
+            const token1Address = await token1.getAddress();
+            const token2Address = await token2.getAddress();
+            const pA = ethers.getBytes(alice.publicKey)
+            const pB = ethers.getBytes(bob.publicKey)
+            m1 = ethers.getBytes(ethers.solidityPackedKeccak256(
+                ["uint", "address", "address", "address","uint"],
+                [chainId, token1Address, alice.address, bob.address, amount1]));
+            m2 = ethers.getBytes(ethers.solidityPackedKeccak256(
+                ["uint", "address", "address", "address","uint"],
+                [chainId, token2Address, bob.address, alice.address, amount2]));
+            //m1 = ethers.getBytes(Transaction.from(tx1).unsignedHash);
+            //m2 = ethers.getBytes(Transaction.from(tx2).unsignedHash);
         })
         it("Should  presign with Alice", async function () {
             preSignAlice = SchnorrAdapter.presign(m1, ethers.getBytes(alice.privateKey))
@@ -86,6 +101,15 @@ describe("Adapter", function () {
             const result = await schnorrContract.verify(pk[0] - 2 + 27, pk.slice(1, 33), ethers.getBytes(m2), preSignBob.e, sBob)
             expect(result).to.equal(true);
         });
+        it("Should send tx with Alice with the adapter signature from Bob", async function () {
+            const pk = ethers.getBytes(bob.publicKey);
+            const result=await token2.transferOnBehalf(0,bob.address, alice.address, amount2,pk[0] - 2 + 27, pk.slice(1, 33),sBob, preSignBob.e);
+            const receipt=await result.wait();
+            console.log(receipt)
+            console.log(result)
+            //const result = await schnorrContract.verify(pk[0] - 2 + 27, pk.slice(1, 33), ethers.getBytes(m2), preSignBob.e, sBob)
+            expect(result).to.equal(true);
+        });
         it("Should recover t with Bob from sBob signature sent by Alice", async function () {
             tRecovered = SchnorrAdapter.recover(sBob, preSignBob.sAdapt);
             const Trecovered = publicKeyCreate(tRecovered);
@@ -96,7 +120,6 @@ describe("Adapter", function () {
             const pk = ethers.getBytes(alice.publicKey);
             const result = await schnorrContract.verify(pk[0] - 2 + 27, pk.slice(1, 33), ethers.getBytes(m1), preSignAlice.e, sAlice)
             expect(result).to.equal(true);
-
         });
     });
 

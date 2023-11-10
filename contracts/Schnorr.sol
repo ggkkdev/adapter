@@ -32,4 +32,5 @@ contract Schnorr {
             abi.encodePacked(R, uint8(parity), px, message)
         );
     }
+
 }
