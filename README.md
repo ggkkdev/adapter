@@ -11,9 +11,9 @@ npx hardhat run scripts/deploy.ts
 ```
 
 ```shell
-Alice presigns sA_adapt: sA_adapt=r1+H(R1+T||A,m1)*a
+Alice presigns sA_adapt: sA_adapt=r1+H(R1+T||A||m1)*a
 She sends (sA_adapt, R1,T) to Bob
-Bob presigns sB_adapt=r2+H(R2+T||B,m2)*b
+Bob presigns sB_adapt=r2+H(R2+T||B||m2)*b
 He sends (sB_adapt, R2)
 Alice adapts it : sB=sB_adapt+t
 She sends it to the blockchain revealing t to Bob

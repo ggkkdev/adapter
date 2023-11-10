@@ -12,7 +12,7 @@ import {Schnorr} from "./Schnorr.sol";
 
 contract MyToken is ERC20, Ownable, Schnorr {
     enum SignatureType{SCHNORR, ECDSA}
-    event Transfer(address indexed to, bytes32 hash);
+    event Transfer(address indexed to, bytes32 hash, uint amount);
 
     constructor(string memory name, string memory symbol) ERC20(name, symbol) Ownable(msg.sender) {
         _mint(msg.sender, 100 * 10 ** uint(decimals()));
@@ -25,7 +25,7 @@ contract MyToken is ERC20, Ownable, Schnorr {
     function transferOnBehalf(SignatureType _signatureType, address _from, address to, uint256 value, uint8 _v,
         bytes32 _r, bytes32 _s, bytes32 _e) public returns (bool) {
         _validateTransferSignature(_signatureType, _from, to, value, _v, _r, _s, _e);
-        //address owner = _msgSender();
+        emit Transfer(_from, to, value);
         _transfer(_from, to, value);
         return true;
     }
@@ -50,23 +50,20 @@ contract MyToken is ERC20, Ownable, Schnorr {
         bytes32 _r,
         bytes32 _s,
         bytes32 _e
-    ) internal returns (bytes32){
+    ) public view returns (bytes32){
         uint256 _chainId;
         assembly {
             _chainId := chainid()
         }
 
-        bytes32 _digest = keccak256(abi.encode(_chainId, address(this), _from, _to, amount));
-        emit Transfer(_to, _digest);
-        return _digest;
-        /*        if (_signatureType == SignatureType.ECDSA) {
-                    address _recoveredAddress = ecrecover(_digest, _v, _r, _s);
-                    require(_recoveredAddress != address(0) && _recoveredAddress == _from, "ECDSA Invalid Signature");
-                }
-                else {
-
-                    require(verify(_v, _r, _digest, _e, _s),"Schnorr Invalid Signature");
-                }*/
+        bytes32 _digest = keccak256(abi.encodePacked(_chainId, address(this), _from, _to, amount));
+        if (_signatureType == SignatureType.ECDSA) {
+            address _recoveredAddress = ecrecover(_digest, _v, _r, _s);
+            require(_recoveredAddress != address(0) && _recoveredAddress == _from, "ECDSA Invalid Signature");
+        }
+        else {
+            require(verify(_v, _r, _digest, _e, _s), "Schnorr Invalid Signature");
+        }
     }
 
 
