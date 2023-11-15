@@ -46,7 +46,7 @@ describe("Adapter", function () {
             const setup = await loadFixture(deploy);
             [alice, bob, owner, schnorrContract, token1, token2] = [setup.alice, setup.bob, setup.owner, setup.schnorrContract, setup.token1, setup.token2];
         })
-        it("Should  give alice and bob some eth to perform txs and send tokens", async function () {
+        it("Should mint for Alice and Bob some tokens to perform tx1 and tx2 respectively", async function () {
             await token1.mint(alice.address, 10n ** 18n);
             await token2.mint(bob.address, 10n ** 18n);
         })

@@ -77,7 +77,7 @@ export default class SchnorrAdapter {
         return privateKeyTweakAdd(s, sAdaptMin);*/
         const sBN = new BN(s).toRed(red)
         const sAdaptBN = new BN(sAdapt).toRed(red)
-        return sBN.sub(sAdaptBN).toBuffer();
+        return sBN.redSub(sAdaptBN).toBuffer();
     }
 
     static challenge(R: Uint8Array, m: Uint8Array, publicKey: Uint8Array) {

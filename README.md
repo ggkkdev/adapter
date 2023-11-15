@@ -21,8 +21,8 @@ If successful verification, Bob presigns sB_adapt=r2+H(R2+T||B||m2)*b
 He sends (sB_adapt, R2)
 Alice adapts it : sB=sB_adapt+t
 She sends it to the blockchain revealing t to Bob
-Bob first compute t : t=sB-sB_adapt
-and adapt Alice signature: sA=sA_adapt+t
+Bob first computes t : t=sB-sB_adapt
+and adapts Alice signature: sA=sA_adapt+t
 He sends it to the blockchain
 
 
